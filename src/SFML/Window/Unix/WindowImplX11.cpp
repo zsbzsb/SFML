@@ -686,7 +686,7 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
     switch (windowEvent->response_type & ~0x80)
     {
         // Destroy event
-        case XCB_DESTROY_NOTIFY :
+        case XCB_DESTROY_NOTIFY:
         {
             // The window is about to be destroyed : we must cleanup resources
             cleanup();
@@ -694,7 +694,7 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
         }
 
         // Gain focus event
-        case XCB_FOCUS_IN :
+        case XCB_FOCUS_IN:
         {
             // Update the input context
             if (m_inputContext)
@@ -707,7 +707,7 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
         }
 
         // Lost focus event
-        case XCB_FOCUS_OUT :
+        case XCB_FOCUS_OUT:
         {
             // Update the input context
             if (m_inputContext)
@@ -720,7 +720,7 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
         }
 
         // Resize event
-        case XCB_CONFIGURE_NOTIFY :
+        case XCB_CONFIGURE_NOTIFY:
         {
             xcb_configure_notify_event_t* e = reinterpret_cast<xcb_configure_notify_event_t*>(windowEvent);
             Event event;
@@ -732,7 +732,7 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
         }
 
         // Close event
-        case XCB_CLIENT_MESSAGE :
+        case XCB_CLIENT_MESSAGE:
         {
             xcb_client_message_event_t* e = reinterpret_cast<xcb_client_message_event_t*>(windowEvent);
             if ((e->format == 32) && (e->data.data32[0]) == static_cast<long>(m_atomClose))
@@ -745,7 +745,7 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
         }
 
         // Key down event
-        case XCB_KEY_PRESS :
+        case XCB_KEY_PRESS:
         {
             xcb_key_press_event_t* e = reinterpret_cast<xcb_key_press_event_t*>(windowEvent);
             // Get the keysym of the key that has been pressed
@@ -816,7 +816,7 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
         }
 
         // Key up event
-        case KeyRelease :
+        case KeyRelease:
         {
             xcb_key_release_event_t* e = reinterpret_cast<xcb_key_release_event_t*>(windowEvent);
             // Get the keysym of the key that has been pressed
@@ -845,7 +845,7 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
         }
 
         // Mouse button pressed
-        case ButtonPress :
+        case XCB_BUTTON_PRESS:
         {
             xcb_button_press_event_t* e = reinterpret_cast<xcb_button_press_event_t*>(windowEvent);
 
@@ -872,7 +872,7 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
         }
 
         // Mouse button released
-        case ButtonRelease :
+        case XCB_BUTTON_RELEASE:
         {
             xcb_button_release_event_t* e = reinterpret_cast<xcb_button_press_event_t*>(windowEvent);
 
@@ -907,7 +907,7 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
         }
 
         // Mouse moved
-        case MotionNotify :
+        case XCB_MOTION_NOTIFY:
         {
             xcb_motion_notify_event_t* e = reinterpret_cast<xcb_motion_notify_event_t*>(windowEvent);
             Event event;
@@ -919,7 +919,7 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
         }
 
         // Mouse entered
-        case EnterNotify :
+        case XCB_ENTER_NOTIFY:
         {
             if (windowEvent.xcrossing.mode == NotifyNormal)
             {
@@ -931,7 +931,7 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
         }
 
         // Mouse left
-        case LeaveNotify :
+        case XCB_LEAVE_NOTIFY:
         {
             if (windowEvent.xcrossing.mode == NotifyNormal)
             {
