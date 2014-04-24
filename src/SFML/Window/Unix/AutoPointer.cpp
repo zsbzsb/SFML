@@ -26,7 +26,7 @@
 // Headers
 ////////////////////////////////////////////////////////////
 
-#include <SFML/Window/Linux/AutoPointer.hpp>
+#include <SFML/Window/Unix/AutoPointer.hpp>
 #include <cstdlib>
 
 namespace sf

@@ -28,19 +28,25 @@
 #include <SFML/Window/WindowStyle.hpp> // important to be included first (conflict with None)
 #include <SFML/Window/Unix/WindowImplX11.hpp>
 #include <SFML/Window/Unix/Display.hpp>
-#include <SFML/Window/Linux/AutoPointer.hpp>
+#include <SFML/Window/Unix/AutoPointer.hpp>
 #include <SFML/System/Utf.hpp>
 #include <SFML/System/Err.hpp>
 #include <X11/keysym.h>
 #include <X11/Xutil.h>
+#include <X11/Xatom.h>
 #include <xcb/xcb_atom.h>
 #include <xcb/xcb_icccm.h>
 #include <xcb/xcb_image.h>
+#include <xcb/xcb_util.h>
 #include <xcb/randr.h>
+#include <unistd.h>
+#include <libgen.h>
+#include <cstring>
 #include <sstream>
 #include <vector>
 #include <string>
 #include <iterator>
+#include <iostream>
 
 #ifdef SFML_OPENGL_ES
     #include <SFML/Window/EglContext.hpp>
@@ -199,8 +205,20 @@ m_useSizeHints(false)
     // Set the window's style (tell the windows manager to change our window's decorations and functions according to the requested style)
     if (!fullscreen)
     {
-        xcb_atom_t WMHintsAtom = xcb_atom_get(m_connection, "_MOTIF_WM_HINTS");
-        if (WMHintsAtom)
+        static const std::string MOTIF_WM_HINTS = "_MOTIF_WM_HINTS";
+        xcb_intern_atom_cookie_t hintsAtomRequest = xcb_intern_atom(
+            m_connection,
+            0,
+            MOTIF_WM_HINTS.size(),
+            MOTIF_WM_HINTS.c_str()
+        );
+        xcb_intern_atom_reply_t* hintsAtomReply = xcb_intern_atom_reply(
+            m_connection,
+            hintsAtomRequest,
+            NULL
+        );
+
+        if (hintsAtomReply)
         {
             static const unsigned long MWM_HINTS_FUNCTIONS   = 1 << 0;
             static const unsigned long MWM_HINTS_DECORATIONS = 1 << 1;
@@ -252,17 +270,18 @@ m_useSizeHints(false)
 
             const unsigned char* ptr = reinterpret_cast<const unsigned char*>(&hints);
             xcb_change_property(m_connection, XCB_PROP_MODE_REPLACE, m_window,
-                                WMHintsAtom, WM_HINTS, 32, 5, ptr);
+                                    hintsAtomReply->atom, XA_WM_HINTS, 32, 5, ptr);
         }
 
         // This is a hack to force some windows managers to disable resizing
         if (!(style & Style::Resize))
         {
+            m_useSizeHints = true;
             xcb_size_hints_t sizeHints;
-            sizeHints.flags      = XCB_SIZE_HINT_P_MIN_SIZE | XCB_SIZE_HINT_P_MAX_SIZE;
+            sizeHints.flags      = XCB_ICCCM_SIZE_HINT_P_MIN_SIZE | XCB_ICCCM_SIZE_HINT_P_MAX_SIZE;
             sizeHints.min_width  = sizeHints.max_width  = width;
             sizeHints.min_height = sizeHints.max_height = height;
-            xcb_set_wm_normal_hints(m_connection, m_window, &sizeHints);
+            xcb_icccm_set_wm_normal_hints(m_connection, m_window, &sizeHints);
         }
     }
  
@@ -367,6 +386,15 @@ Vector2u WindowImplX11::getSize() const
 ////////////////////////////////////////////////////////////
 void WindowImplX11::setSize(const Vector2u& size)
 {
+    // If resizing is disable for the window we have to update the size hints (required by some window managers).
+    if( m_useSizeHints ) {
+        xcb_size_hints_t sizeHints;
+        sizeHints.flags      = XCB_ICCCM_SIZE_HINT_P_MIN_SIZE | XCB_ICCCM_SIZE_HINT_P_MAX_SIZE;
+        sizeHints.min_width  = sizeHints.max_width  = size.x;
+        sizeHints.min_height = sizeHints.max_height = size.y;
+        xcb_icccm_set_wm_normal_hints(m_connection, m_window, &sizeHints);
+    }
+
     uint32_t values[] = {size.x, size.y};
     xcb_configure_window(m_connection, m_window,
                          XCB_CONFIG_WINDOW_WIDTH | XCB_CONFIG_WINDOW_HEIGHT,
@@ -378,10 +406,16 @@ void WindowImplX11::setSize(const Vector2u& size)
 ////////////////////////////////////////////////////////////
 void WindowImplX11::setTitle(const String& title)
 {
-    const char* c_title = title.c_str();
+    // XCB takes UTF-8-encoded strings.
+    std::basic_string<sf::Uint8> utf8String;
+    sf::Utf<32>::toUtf8(
+        title.begin(), title.end(),
+        std::back_inserter( utf8String )
+    );
+
     xcb_change_property(m_connection, XCB_PROP_MODE_REPLACE, m_window,
-                        WM_NAME, STRING,
-                        8, title.length(), c_title);
+                        XA_WM_NAME, XA_STRING,
+                        8, utf8String.length(), utf8String.c_str());
     xcb_flush(m_connection);
 }
 
@@ -440,11 +474,11 @@ void WindowImplX11::setIcon(unsigned int width, unsigned int height, const Uint8
     xcb_pixmap_t maskPixmap = xcb_create_pixmap_from_bitmap_data(m_connection, m_window, (Uint8*)&maskPixels[0], width, height, 1, 0, 1, NULL);
 
     // Send our new icon to the window through the WMHints
-    xcb_wm_hints_t hints;
-    hints.flags       = XCB_WM_HINT_ICON_PIXMAP | XCB_WM_HINT_ICON_MASK;
+    xcb_icccm_wm_hints_t hints;
+    hints.flags       = XCB_ICCCM_WM_HINT_ICON_PIXMAP | XCB_ICCCM_WM_HINT_ICON_MASK;
     hints.icon_pixmap = iconPixmap;
     hints.icon_mask   = maskPixmap;
-    xcb_set_wm_hints(m_connection, m_window, &hints);
+    xcb_icccm_set_wm_hints(m_connection, m_window, &hints);
 
     xcb_flush(m_connection);
 }
@@ -546,10 +580,52 @@ void WindowImplX11::initialize()
     m_lastKeyReleaseEvent.detail = 0;
     m_lastKeyReleaseEvent.time = 0;
 
-    // Get the atom defining the close event
-    m_atomClose = xcb_atom_get(m_connection, "WM_DELETE_WINDOW");
-    xcb_atom_t wmprotocolsAtom = xcb_atom_get(m_connection, "WM_PROTOCOLS");
-    xcb_set_wm_protocols(m_connection, wmprotocolsAtom, m_window, 1, &m_atomClose);
+    // Get the atoms for registering the close event
+    static const std::string WM_DELETE_WINDOW_NAME = "WM_DELETE_WINDOW";
+
+    xcb_intern_atom_cookie_t deleteWindowAtomRequest = xcb_intern_atom(
+        m_connection,
+        0,
+        WM_DELETE_WINDOW_NAME.size(),
+        WM_DELETE_WINDOW_NAME.c_str()
+    );
+    xcb_intern_atom_reply_t* deleteWindowAtomReply = xcb_intern_atom_reply(
+        m_connection,
+        deleteWindowAtomRequest,
+        NULL
+    );
+
+    static const std::string WM_PROTOCOLS_NAME = "WM_PROTOCOLS";
+
+    xcb_intern_atom_cookie_t protocolsAtomRequest = xcb_intern_atom(
+        m_connection,
+        0,
+        WM_PROTOCOLS_NAME.size(),
+        WM_PROTOCOLS_NAME.c_str()
+    );
+    xcb_intern_atom_reply_t* protocolsAtomReply = xcb_intern_atom_reply(
+        m_connection,
+        protocolsAtomRequest,
+        NULL
+    );
+
+    if (protocolsAtomReply && deleteWindowAtomReply)
+    {
+        xcb_icccm_set_wm_protocols(
+            m_connection,
+            m_window,
+            protocolsAtomReply->atom,
+            1,
+            &deleteWindowAtomReply->atom
+        );
+
+        m_atomClose = deleteWindowAtomReply->atom;
+    }
+    else
+    {
+        // Should not happen, but better safe than sorry.
+        std::cerr << "Failed to request WM_PROTOCOLS/WM_DELETE_WINDOW_NAME atoms." << std::endl;
+    }
 
     // Create the input context
     m_inputMethod = XOpenIM(m_display, NULL, NULL, NULL);
@@ -921,7 +997,9 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
         // Mouse entered
         case XCB_ENTER_NOTIFY:
         {
-            if (windowEvent.xcrossing.mode == NotifyNormal)
+            xcb_enter_notify_event_t* enterNotifyEvent = reinterpret_cast<xcb_enter_notify_event_t*>(windowEvent);
+
+            if (enterNotifyEvent->mode == NotifyNormal)
             {
                 Event event;
                 event.type = Event::MouseEntered;
@@ -933,7 +1011,9 @@ bool WindowImplX11::processEvent(xcb_generic_event_t* windowEvent)
         // Mouse left
         case XCB_LEAVE_NOTIFY:
         {
-            if (windowEvent.xcrossing.mode == NotifyNormal)
+            xcb_leave_notify_event_t* leaveNotifyEvent = reinterpret_cast<xcb_leave_notify_event_t*>(windowEvent);
+
+            if (leaveNotifyEvent->mode == NotifyNormal)
             {
                 Event event;
                 event.type = Event::MouseLeft;

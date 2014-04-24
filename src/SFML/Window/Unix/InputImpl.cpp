@@ -28,7 +28,7 @@
 #include <SFML/Window/Unix/InputImpl.hpp>
 #include <SFML/Window/Window.hpp>
 #include <SFML/Window/Unix/Display.hpp>
-#include <SFML/Window/Linux/AutoPointer.hpp>
+#include <SFML/Window/Unix/AutoPointer.hpp>
 #include <X11/Xlib-xcb.h>
 #include <X11/keysym.h>
 #include <cstdlib>
