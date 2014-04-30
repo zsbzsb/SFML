@@ -229,7 +229,7 @@ public :
         /// \param data      Data containing the raw listing
         ///
         ////////////////////////////////////////////////////////////
-        ListingResponse(const Response& response, const std::vector<char>& data);
+        ListingResponse(const Response& response, const std::string& data);
 
         ////////////////////////////////////////////////////////////
         /// \brief Return the array of directory/file names
