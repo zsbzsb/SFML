@@ -332,6 +332,13 @@ int Font::getKerning(Uint32 first, Uint32 second, unsigned int characterSize) co
         FT_Vector kerning;
         FT_Get_Kerning(face, index1, index2, FT_KERNING_DEFAULT, &kerning);
 
+        // Detect whether the font is a bitmap font
+        bool isBitmapFont = !(face->face_flags & FT_FACE_FLAG_SCALABLE);
+
+        // Bitmap font X advance is already in pixels
+        if (isBitmapFont)
+            return kerning.x;
+
         // Return the X advance
         return kerning.x >> 6;
     }
@@ -350,6 +357,13 @@ int Font::getLineSpacing(unsigned int characterSize) const
 
     if (face && setCurrentSize(characterSize))
     {
+        // Detect whether the font is a bitmap font
+        bool isBitmapFont = !(face->face_flags & FT_FACE_FLAG_SCALABLE);
+
+        // Return the first available size if font is a bitmap font
+        if (isBitmapFont)
+            return (face->available_sizes ? face->available_sizes[0].height : 0);
+
         return (face->size->metrics.height >> 6);
     }
     else
@@ -521,8 +535,11 @@ Glyph Font::loadGlyph(Uint32 codePoint, unsigned int characterSize, bool bold) c
     int height = bitmap.rows;
     int ascender = face->size->metrics.ascender >> 6;
 
+    // Detect whether the font is a bitmap font
+    bool isBitmapFont = !(face->face_flags & FT_FACE_FLAG_SCALABLE);
+
     // Offset to make up for empty space between ascender and virtual top of the typeface
-    int offset = characterSize - ascender;
+    int offset = isBitmapFont ? 0 : (characterSize - ascender);
 
     if ((width > 0) && (height > 0))
     {
@@ -673,7 +690,17 @@ bool Font::setCurrentSize(unsigned int characterSize) const
 
     if (currentSize != characterSize)
     {
-        return FT_Set_Pixel_Sizes(face, 0, characterSize) == 0;
+        FT_Error result = FT_Set_Pixel_Sizes(face, 0, characterSize);
+
+        // Detect whether the font is a bitmap font
+        bool isBitmapFont = !(face->face_flags & FT_FACE_FLAG_SCALABLE);
+
+        // In the case of bitmap fonts, resizing can
+        // fail if the requested size is not available
+        if (isBitmapFont)
+            return true;
+
+        return result == 0;
     }
     else
     {
