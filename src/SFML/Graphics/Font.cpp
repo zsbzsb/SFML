@@ -360,6 +360,52 @@ int Font::getLineSpacing(unsigned int characterSize) const
 
 
 ////////////////////////////////////////////////////////////
+int Font::getUnderlinePosition(unsigned int characterSize) const
+{
+    FT_Face face = static_cast<FT_Face>(m_face);
+
+    if (face && setCurrentSize(characterSize))
+    {
+        // Detect whether the font is a bitmap font
+        bool isBitmapFont = !(face->face_flags & FT_FACE_FLAG_SCALABLE);
+
+        // Return a fixed position if font is a bitmap font
+        if (isBitmapFont)
+            return characterSize / 10;
+
+        return (FT_MulFix(face->underline_position, face->size->metrics.y_scale) >> 6);
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+
+////////////////////////////////////////////////////////////
+int Font::getUnderlineThickness(unsigned int characterSize) const
+{
+    FT_Face face = static_cast<FT_Face>(m_face);
+
+    if (face && setCurrentSize(characterSize))
+    {
+        // Detect whether the font is a bitmap font
+        bool isBitmapFont = !(face->face_flags & FT_FACE_FLAG_SCALABLE);
+
+        // Return a fixed thickness if font is a bitmap font
+        if (isBitmapFont)
+            return characterSize / 14;
+
+        return (FT_MulFix(face->underline_thickness, face->size->metrics.y_scale) >> 6);
+    }
+    else
+    {
+        return 0;
+    }
+}
+
+
+////////////////////////////////////////////////////////////
 const Texture& Font::getTexture(unsigned int characterSize) const
 {
     return m_pages[characterSize].texture;
