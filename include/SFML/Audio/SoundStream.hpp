@@ -32,6 +32,7 @@
 #include <SFML/Audio/SoundSource.hpp>
 #include <SFML/System/Thread.hpp>
 #include <SFML/System/Time.hpp>
+#include <SFML/System/Mutex.hpp>
 #include <cstdlib>
 
 
@@ -282,6 +283,8 @@ private :
     // Member data
     ////////////////////////////////////////////////////////////
     Thread        m_thread;                  ///< Thread running the background tasks
+    bool          m_threadRunning;           ///< Thread state (true = running, false = terminated)
+    Mutex         m_threadRunningMutex;      ///< Thread state mutex
     bool          m_isStreaming;             ///< Streaming state (true = playing, false = stopped)
     unsigned int  m_buffers[BufferCount];    ///< Sound buffers used to store temporary audio data
     unsigned int  m_channelCount;            ///< Number of channels (1 = mono, 2 = stereo, ...)

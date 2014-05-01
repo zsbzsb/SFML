@@ -30,6 +30,7 @@
 #include <SFML/Audio/ALCheck.hpp>
 #include <SFML/System/Sleep.hpp>
 #include <SFML/System/Err.hpp>
+#include <SFML/System/Lock.hpp>
 
 #ifdef _MSC_VER
     #pragma warning(disable : 4355) // 'this' used in base member initializer list
@@ -40,13 +41,15 @@ namespace sf
 {
 ////////////////////////////////////////////////////////////
 SoundStream::SoundStream() :
-m_thread          (&SoundStream::streamData, this),
-m_isStreaming     (false),
-m_channelCount    (0),
-m_sampleRate      (0),
-m_format          (0),
-m_loop            (false),
-m_samplesProcessed(0)
+m_thread            (&SoundStream::streamData, this),
+m_threadRunning     (false),
+m_threadRunningMutex(),
+m_isStreaming       (false),
+m_channelCount      (0),
+m_sampleRate        (0),
+m_format            (0),
+m_loop              (false),
+m_samplesProcessed  (0)
 {
 
 }
@@ -152,6 +155,9 @@ SoundStream::Status SoundStream::getStatus() const
 ////////////////////////////////////////////////////////////
 void SoundStream::setPlayingOffset(Time timeOffset)
 {
+    // Get old playing status
+    Status oldStatus = getStatus();
+
     // Stop the stream
     stop();
 
@@ -162,6 +168,28 @@ void SoundStream::setPlayingOffset(Time timeOffset)
     m_samplesProcessed = static_cast<Uint64>(timeOffset.asSeconds() * m_sampleRate * m_channelCount);
     m_isStreaming = true;
     m_thread.launch();
+
+    // If the old status was Playing, save time and return
+    if (oldStatus == Playing)
+        return;
+
+    // Busy wait until the thread is running so we can stop/pause
+    for (;;)
+    {
+        {
+            sf::Lock lock(m_threadRunningMutex);
+            if (m_threadRunning)
+                break;
+        }
+
+        sleep(microseconds(1));
+    }
+
+    // Restore to old status
+    if (oldStatus == Stopped)
+        stop();
+    else if (oldStatus == Paused)
+        pause();
 }
 
 
@@ -209,6 +237,11 @@ void SoundStream::streamData()
 
     // Play the sound
     alCheck(alSourcePlay(m_source));
+
+    {
+        sf::Lock lock(m_threadRunningMutex);
+        m_threadRunning = true;
+    }
 
     while (m_isStreaming)
     {
@@ -298,6 +331,11 @@ void SoundStream::streamData()
     // Delete the buffers
     alCheck(alSourcei(m_source, AL_BUFFER, 0));
     alCheck(alDeleteBuffers(BufferCount, m_buffers));
+
+    {
+        sf::Lock lock(m_threadRunningMutex);
+        m_threadRunning = false;
+    }
 }
 
 
