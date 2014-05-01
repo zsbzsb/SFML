@@ -494,6 +494,13 @@ void WindowImplCocoa::setMouseCursorVisible(bool visible)
 
 
 ////////////////////////////////////////////////////////////
+void WindowImplCocoa::setMouseCursorGrabbed(bool grabbed)
+{
+
+}
+
+
+////////////////////////////////////////////////////////////
 void WindowImplCocoa::setKeyRepeatEnabled(bool enabled)
 {
     if (enabled)

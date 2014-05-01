@@ -282,6 +282,14 @@ void Window::setMouseCursorVisible(bool visible)
 
 
 ////////////////////////////////////////////////////////////
+void Window::setMouseCursorGrabbed(bool grabbed)
+{
+    if (m_impl)
+        m_impl->setMouseCursorGrabbed(grabbed);
+}
+
+
+////////////////////////////////////////////////////////////
 void Window::setKeyRepeatEnabled(bool enabled)
 {
     if (m_impl)
