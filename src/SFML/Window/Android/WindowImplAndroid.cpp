@@ -181,6 +181,21 @@ void WindowImplAndroid::setKeyRepeatEnabled(bool enabled)
 
 
 ////////////////////////////////////////////////////////////
+void WindowImplAndroid::requestFocus()
+{
+    // Not applicable
+}
+
+
+////////////////////////////////////////////////////////////
+bool WindowImplAndroid::hasFocus() const
+{
+    // Not applicable
+    return false;
+}
+
+
+////////////////////////////////////////////////////////////
 int WindowImplAndroid::processEvent(int fd, int events, void* data)
 {
     ActivityStates* states = getActivity(NULL);
