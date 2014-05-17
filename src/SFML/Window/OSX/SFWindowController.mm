@@ -94,6 +94,7 @@
         m_window = nil;
         m_oglView = nil;
         m_requester = 0;
+        m_restoreResize = NO;
 
         // Retain the window for our own use.
         m_window = [window retain];
@@ -144,6 +145,7 @@
         m_window = nil;
         m_oglView = nil;
         m_requester = 0;
+        m_restoreResize = NO;
 
         if (style & sf::Style::Fullscreen)
             [self setupFullscreenViewWithMode:mode];
@@ -333,6 +335,29 @@
 -(void)showMouseCursor
 {
     [NSCursor unhide];
+}
+
+
+////////////////////////////////////////////////////////
+-(void)setCursorGrabbed:(BOOL)grabbed
+{
+    // Remove or restore resizeable style if needed
+    BOOL resizeable = [m_window styleMask] & NSResizableWindowMask;
+    if (grabbed && resizeable)
+    {
+        m_restoreResize = YES;
+        NSUInteger newStyle = [m_window styleMask] & ~NSResizableWindowMask;
+        [m_window setStyleMask:newStyle];
+    }
+    else if (!grabbed && m_restoreResize)
+    {
+        m_restoreResize = NO;
+        NSUInteger newStyle = [m_window styleMask] | NSResizableWindowMask;
+        [m_window setStyleMask:newStyle];
+    }
+
+    // Forward to our view
+    [m_oglView setCursorGrabbed:grabbed];
 }
 
 
