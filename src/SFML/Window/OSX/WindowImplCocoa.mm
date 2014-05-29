@@ -504,9 +504,9 @@ void WindowImplCocoa::setKeyRepeatEnabled(bool enabled)
 
 
 ////////////////////////////////////////////////////////////
-bool WindowImplCocoa::requestFocus()
+void WindowImplCocoa::requestFocus()
 {
-    return [m_delegate requestFocus];
+    [m_delegate requestFocus];
 }
 
 
