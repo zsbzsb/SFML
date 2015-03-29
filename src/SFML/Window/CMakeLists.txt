@@ -25,6 +25,7 @@ set(SRC
     ${SRCROOT}/Mouse.cpp
     ${INCROOT}/Touch.hpp
     ${SRCROOT}/Touch.cpp
+    ${INCROOT}/ScanCodes.hpp
     ${INCROOT}/Sensor.hpp
     ${SRCROOT}/Sensor.cpp
     ${SRCROOT}/SensorImpl.hpp

@@ -639,12 +639,15 @@ void WindowImplWin32::processEvent(UINT message, WPARAM wParam, LPARAM lParam)
             if (m_keyRepeatEnabled || ((HIWORD(lParam) & KF_REPEAT) == 0))
             {
                 Event event;
-                event.type        = Event::KeyPressed;
-                event.key.alt     = HIWORD(GetAsyncKeyState(VK_MENU))    != 0;
-                event.key.control = HIWORD(GetAsyncKeyState(VK_CONTROL)) != 0;
-                event.key.shift   = HIWORD(GetAsyncKeyState(VK_SHIFT))   != 0;
-                event.key.system  = HIWORD(GetAsyncKeyState(VK_LWIN)) || HIWORD(GetAsyncKeyState(VK_RWIN));
-                event.key.code    = virtualKeyCodeToSF(wParam, lParam);
+                event.type            = Event::KeyPressed;
+                event.key.alt         = HIWORD(GetAsyncKeyState(VK_MENU))    != 0;
+                event.key.control     = HIWORD(GetAsyncKeyState(VK_CONTROL)) != 0;
+                event.key.shift       = HIWORD(GetAsyncKeyState(VK_SHIFT))   != 0;
+                event.key.system      = HIWORD(GetAsyncKeyState(VK_LWIN)) || HIWORD(GetAsyncKeyState(VK_RWIN));
+                event.key.virtualKey  = virtualKeyCodeToSF(wParam, lParam);
+                event.key.scanCode    = scanCodeToSF(wParam, lParam);
+                event.key.rawScanCode = static_cast<ScanCode>((lParam & (0xFF << 16)) >> 16);
+                event.key.code        = event.key.virtualKey;
                 pushEvent(event);
             }
             break;
@@ -655,12 +658,15 @@ void WindowImplWin32::processEvent(UINT message, WPARAM wParam, LPARAM lParam)
         case WM_SYSKEYUP:
         {
             Event event;
-            event.type        = Event::KeyReleased;
-            event.key.alt     = HIWORD(GetAsyncKeyState(VK_MENU))    != 0;
-            event.key.control = HIWORD(GetAsyncKeyState(VK_CONTROL)) != 0;
-            event.key.shift   = HIWORD(GetAsyncKeyState(VK_SHIFT))   != 0;
-            event.key.system  = HIWORD(GetAsyncKeyState(VK_LWIN)) || HIWORD(GetAsyncKeyState(VK_RWIN));
-            event.key.code    = virtualKeyCodeToSF(wParam, lParam);
+            event.type            = Event::KeyReleased;
+            event.key.alt         = HIWORD(GetAsyncKeyState(VK_MENU))    != 0;
+            event.key.control     = HIWORD(GetAsyncKeyState(VK_CONTROL)) != 0;
+            event.key.shift       = HIWORD(GetAsyncKeyState(VK_SHIFT))   != 0;
+            event.key.system      = HIWORD(GetAsyncKeyState(VK_LWIN)) || HIWORD(GetAsyncKeyState(VK_RWIN));
+            event.key.virtualKey  = virtualKeyCodeToSF(wParam, lParam);
+            event.key.scanCode    = scanCodeToSF(wParam, lParam);
+            event.key.rawScanCode = static_cast<ScanCode>((lParam & (0xFF << 16)) >> 16);
+            event.key.code        = event.key.virtualKey;
             pushEvent(event);
             break;
         }
@@ -1017,6 +1023,64 @@ Keyboard::Key WindowImplWin32::virtualKeyCodeToSF(WPARAM key, LPARAM flags)
 
 
 ////////////////////////////////////////////////////////////
+ScanCode WindowImplWin32::scanCodeToSF(WPARAM key, LPARAM flags)
+{
+    UINT scancode = static_cast<UINT>((flags & (0xFF << 16)) >> 16);
+    UINT extended = (HIWORD(flags) & KF_EXTENDED);
+
+    // Return early if the scan code is out of range
+    if (scancode > 127)
+        return ScanCodes::ENUS::Unknown;
+
+    // Handle special keys
+    if (scancode == 0 || extended)
+    {
+        switch (key)
+        {
+            case VK_VOLUME_UP:        return ScanCodes::ENUS::VolumeUp;
+            case VK_VOLUME_DOWN:      return ScanCodes::ENUS::VolumeDown;
+            case VK_VOLUME_MUTE:      return ScanCodes::ENUS::VolumeMute;
+            case VK_APPS:             return ScanCodes::ENUS::Menu;
+            case VK_HELP:             return ScanCodes::ENUS::Help;
+            case VK_MEDIA_PREV_TRACK: return ScanCodes::ENUS::Previous;
+            case VK_MEDIA_PLAY_PAUSE: return ScanCodes::ENUS::Play;
+            case VK_MEDIA_NEXT_TRACK: return ScanCodes::ENUS::Next;
+            case VK_MEDIA_STOP:       return ScanCodes::ENUS::Stop;
+        }
+    }
+
+    // Handle extended keys
+    if (extended)
+    {
+        ScanCode code = ScanCodeMap[scancode];
+
+        switch (code)
+        {
+            case ScanCodes::ENUS::Return:       return ScanCodes::ENUS::NumpadReturn;
+            case ScanCodes::ENUS::LControl:     return ScanCodes::ENUS::RControl;
+            case ScanCodes::ENUS::LAlt:         return ScanCodes::ENUS::RAlt;
+            case ScanCodes::ENUS::Numpad7:      return ScanCodes::ENUS::Home;
+            case ScanCodes::ENUS::Numpad8:      return ScanCodes::ENUS::Up;
+            case ScanCodes::ENUS::Numpad9:      return ScanCodes::ENUS::PageUp;
+            case ScanCodes::ENUS::Numpad4:      return ScanCodes::ENUS::Left;
+            case ScanCodes::ENUS::Numpad6:      return ScanCodes::ENUS::Right;
+            case ScanCodes::ENUS::Numpad1:      return ScanCodes::ENUS::End;
+            case ScanCodes::ENUS::Numpad2:      return ScanCodes::ENUS::Down;
+            case ScanCodes::ENUS::Numpad3:      return ScanCodes::ENUS::PageDown;
+            case ScanCodes::ENUS::Numpad0:      return ScanCodes::ENUS::Insert;
+            case ScanCodes::ENUS::NumpadPeriod: return ScanCodes::ENUS::Delete;
+            case ScanCodes::ENUS::Multiply:     return ScanCodes::ENUS::PrintScreen;
+            case ScanCodes::ENUS::Slash:        return ScanCodes::ENUS::Divide;
+            case ScanCodes::ENUS::Pause:        return ScanCodes::ENUS::NumLock;
+        }
+    }
+
+    // Handle normally
+    return ScanCodeMap[scancode];
+}
+
+
+////////////////////////////////////////////////////////////
 LRESULT CALLBACK WindowImplWin32::globalOnEvent(HWND handle, UINT message, WPARAM wParam, LPARAM lParam)
 {
     // Associate handle and Window instance when the creation message is received
@@ -1051,6 +1115,143 @@ LRESULT CALLBACK WindowImplWin32::globalOnEvent(HWND handle, UINT message, WPARA
 
     return DefWindowProcW(handle, message, wParam, lParam);
 }
+
+
+////////////////////////////////////////////////////////////
+/// Generated from https://msdn.microsoft.com/en-us/library/aa299374%28v=vs.60%29.aspx
+////////////////////////////////////////////////////////////
+const ScanCode WindowImplWin32::ScanCodeMap[] =
+{
+    // SFML scan code              // Win32 scan code
+    ScanCodes::ENUS::Unknown,      // 0
+    ScanCodes::ENUS::Escape,       // 1
+    ScanCodes::ENUS::Num1,         // 2
+    ScanCodes::ENUS::Num2,         // 3
+    ScanCodes::ENUS::Num3,         // 4
+    ScanCodes::ENUS::Num4,         // 5
+    ScanCodes::ENUS::Num5,         // 6
+    ScanCodes::ENUS::Num6,         // 7
+    ScanCodes::ENUS::Num7,         // 8
+    ScanCodes::ENUS::Num8,         // 9
+    ScanCodes::ENUS::Num9,         // 10
+    ScanCodes::ENUS::Num0,         // 11
+    ScanCodes::ENUS::Dash,         // 12
+    ScanCodes::ENUS::Equal,        // 13
+    ScanCodes::ENUS::Backspace,    // 14
+    ScanCodes::ENUS::Tab,          // 15
+    ScanCodes::ENUS::Q,            // 16
+    ScanCodes::ENUS::W,            // 17
+    ScanCodes::ENUS::E,            // 18
+    ScanCodes::ENUS::R,            // 19
+    ScanCodes::ENUS::T,            // 20
+    ScanCodes::ENUS::Y,            // 21
+    ScanCodes::ENUS::U,            // 22
+    ScanCodes::ENUS::I,            // 23
+    ScanCodes::ENUS::O,            // 24
+    ScanCodes::ENUS::P,            // 25
+    ScanCodes::ENUS::LBracket,     // 26
+    ScanCodes::ENUS::RBracket,     // 27
+    ScanCodes::ENUS::Return,       // 28
+    ScanCodes::ENUS::LControl,     // 29
+    ScanCodes::ENUS::A,            // 30
+    ScanCodes::ENUS::S,            // 31
+    ScanCodes::ENUS::D,            // 32
+    ScanCodes::ENUS::F,            // 33
+    ScanCodes::ENUS::G,            // 34
+    ScanCodes::ENUS::H,            // 35
+    ScanCodes::ENUS::J,            // 36
+    ScanCodes::ENUS::K,            // 37
+    ScanCodes::ENUS::L,            // 38
+    ScanCodes::ENUS::SemiColon,    // 39
+    ScanCodes::ENUS::Quote,        // 40
+    ScanCodes::ENUS::Tilde,        // 41
+    ScanCodes::ENUS::LShift,       // 42
+    ScanCodes::ENUS::BackSlash,    // 43
+    ScanCodes::ENUS::Z,            // 44
+    ScanCodes::ENUS::X,            // 45
+    ScanCodes::ENUS::C,            // 46
+    ScanCodes::ENUS::V,            // 47
+    ScanCodes::ENUS::B,            // 48
+    ScanCodes::ENUS::N,            // 49
+    ScanCodes::ENUS::M,            // 50
+    ScanCodes::ENUS::Comma,        // 51
+    ScanCodes::ENUS::Period,       // 52
+    ScanCodes::ENUS::Slash,        // 53
+    ScanCodes::ENUS::RShift,       // 54
+    ScanCodes::ENUS::Multiply,     // 55
+    ScanCodes::ENUS::LAlt,         // 56
+    ScanCodes::ENUS::Space,        // 57
+    ScanCodes::ENUS::CapsLock,     // 58
+    ScanCodes::ENUS::F1,           // 59
+    ScanCodes::ENUS::F2,           // 60
+    ScanCodes::ENUS::F3,           // 61
+    ScanCodes::ENUS::F4,           // 62
+    ScanCodes::ENUS::F5,           // 63
+    ScanCodes::ENUS::F6,           // 64
+    ScanCodes::ENUS::F7,           // 65
+    ScanCodes::ENUS::F8,           // 66
+    ScanCodes::ENUS::F9,           // 67
+    ScanCodes::ENUS::F10,          // 68
+    ScanCodes::ENUS::Pause,        // 69
+    ScanCodes::ENUS::ScrollLock,   // 70
+    ScanCodes::ENUS::Numpad7,      // 71
+    ScanCodes::ENUS::Numpad8,      // 72
+    ScanCodes::ENUS::Numpad9,      // 73
+    ScanCodes::ENUS::Substract,    // 74
+    ScanCodes::ENUS::Numpad4,      // 75
+    ScanCodes::ENUS::Numpad5,      // 76
+    ScanCodes::ENUS::Numpad6,      // 77
+    ScanCodes::ENUS::Add,          // 78
+    ScanCodes::ENUS::Numpad1,      // 79
+    ScanCodes::ENUS::Numpad2,      // 80
+    ScanCodes::ENUS::Numpad3,      // 81
+    ScanCodes::ENUS::Numpad0,      // 82
+    ScanCodes::ENUS::NumpadPeriod, // 83
+    ScanCodes::ENUS::Unknown,      // 84
+    ScanCodes::ENUS::Unknown,      // 85
+    ScanCodes::ENUS::Unknown,      // 86
+    ScanCodes::ENUS::F11,          // 87
+    ScanCodes::ENUS::F12,          // 88
+    ScanCodes::ENUS::Unknown,      // 89
+    ScanCodes::ENUS::Unknown,      // 90
+    ScanCodes::ENUS::LSystem,      // 91
+    ScanCodes::ENUS::RSystem,      // 92
+    ScanCodes::ENUS::Unknown,      // 93
+    ScanCodes::ENUS::Unknown,      // 94
+    ScanCodes::ENUS::Unknown,      // 95
+    ScanCodes::ENUS::Unknown,      // 96
+    ScanCodes::ENUS::Unknown,      // 97
+    ScanCodes::ENUS::Unknown,      // 98
+    ScanCodes::ENUS::Unknown,      // 99
+    ScanCodes::ENUS::Unknown,      // 100
+    ScanCodes::ENUS::Unknown,      // 101
+    ScanCodes::ENUS::Unknown,      // 102
+    ScanCodes::ENUS::Unknown,      // 103
+    ScanCodes::ENUS::Unknown,      // 104
+    ScanCodes::ENUS::Unknown,      // 105
+    ScanCodes::ENUS::Unknown,      // 106
+    ScanCodes::ENUS::Unknown,      // 107
+    ScanCodes::ENUS::Unknown,      // 108
+    ScanCodes::ENUS::Unknown,      // 109
+    ScanCodes::ENUS::Unknown,      // 110
+    ScanCodes::ENUS::Unknown,      // 111
+    ScanCodes::ENUS::Unknown,      // 112
+    ScanCodes::ENUS::Unknown,      // 113
+    ScanCodes::ENUS::Unknown,      // 114
+    ScanCodes::ENUS::Unknown,      // 115
+    ScanCodes::ENUS::Unknown,      // 116
+    ScanCodes::ENUS::Unknown,      // 117
+    ScanCodes::ENUS::Unknown,      // 118
+    ScanCodes::ENUS::Unknown,      // 119
+    ScanCodes::ENUS::Unknown,      // 120
+    ScanCodes::ENUS::Unknown,      // 121
+    ScanCodes::ENUS::Unknown,      // 122
+    ScanCodes::ENUS::Unknown,      // 123
+    ScanCodes::ENUS::Unknown,      // 124
+    ScanCodes::ENUS::Unknown,      // 125
+    ScanCodes::ENUS::Unknown,      // 126
+    ScanCodes::ENUS::Unknown,      // 127
+};
 
 } // namespace priv
 

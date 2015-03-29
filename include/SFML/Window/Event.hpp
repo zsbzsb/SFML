@@ -32,6 +32,7 @@
 #include <SFML/Window/Joystick.hpp>
 #include <SFML/Window/Keyboard.hpp>
 #include <SFML/Window/Mouse.hpp>
+#include <SFML/Window/ScanCodes.hpp>
 #include <SFML/Window/Sensor.hpp>
 
 
@@ -58,14 +59,26 @@ public:
     ////////////////////////////////////////////////////////////
     /// \brief Keyboard event parameters (KeyPressed, KeyReleased)
     ///
+    /// The virtual key will always map to the key returned by the OS.
+    /// This means it may vary depending on the keyboard layout and
+    /// language the OS is using.
+    /// The scan code however, will always map to the physical location
+    /// on the actual keyboard. This means no matter what language
+    /// or keyboard layout it will return the same value. The scan code
+    /// is what is generally used in games for control keys so the physical
+    /// key layout does not change depending on the user's language.
+    ///
     ////////////////////////////////////////////////////////////
     struct KeyEvent
     {
-        Keyboard::Key code;    ///< Code of the key that has been pressed
-        bool          alt;     ///< Is the Alt key pressed?
-        bool          control; ///< Is the Control key pressed?
-        bool          shift;   ///< Is the Shift key pressed?
-        bool          system;  ///< Is the System key pressed?
+        Keyboard::Key code;        ///< Code of the key that has been pressed (deprecated, instead use virtualKey member)
+        Keyboard::Key virtualKey;  ///< Virtual key that has been pressed
+        ScanCode      scanCode;    ///< Physical scan code of the key that has been pressed mapped to SFML scan codes
+        ScanCode      rawScanCode; ///< Physical scan code of the key that has been pressed without any modifications
+        bool          alt;         ///< Is the Alt key pressed?
+        bool          control;     ///< Is the Control key pressed?
+        bool          shift;       ///< Is the Shift key pressed?
+        bool          system;      ///< Is the System key pressed?
     };
 
     ////////////////////////////////////////////////////////////

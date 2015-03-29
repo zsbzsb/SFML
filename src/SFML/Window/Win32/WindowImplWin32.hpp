@@ -57,9 +57,9 @@ public:
     ////////////////////////////////////////////////////////////
     /// \brief Create the window implementation
     ///
-    /// \param mode  Video mode to use
-    /// \param title Title of the window
-    /// \param style Window style
+    /// \param mode     Video mode to use
+    /// \param title    Title of the window
+    /// \param style    Window style
     /// \param settings Additional settings for the underlying OpenGL context
     ///
     ////////////////////////////////////////////////////////////
@@ -217,15 +217,26 @@ private:
     void setTracking(bool track);
 
     ////////////////////////////////////////////////////////////
-    /// \brief Convert a Win32 virtual key code to a SFML key code
+    /// \brief Convert a Win32 virtual key code to a SFML virtual key code
     ///
     /// \param key   Virtual key code to convert
     /// \param flags Additional flags
     ///
-    /// \return SFML key code corresponding to the key
+    /// \return SFML virtual key code corresponding to the virtual key
     ///
     ////////////////////////////////////////////////////////////
     static Keyboard::Key virtualKeyCodeToSF(WPARAM key, LPARAM flags);
+
+    ////////////////////////////////////////////////////////////
+    /// \brief Convert a Win32 scan code to a SFML scan code
+    ///
+    /// \param key   Scan code to convert
+    /// \param flags Additional flags
+    ///
+    /// \return SFML scan code corresponding to the scan code
+    ///
+    ////////////////////////////////////////////////////////////
+    static ScanCode scanCodeToSF(WPARAM key, LPARAM flags);
 
     ////////////////////////////////////////////////////////////
     /// \brief Function called whenever one of our windows receives a message
@@ -239,6 +250,11 @@ private:
     ///
     ////////////////////////////////////////////////////////////
     static LRESULT CALLBACK globalOnEvent(HWND handle, UINT message, WPARAM wParam, LPARAM lParam);
+
+    ////////////////////////////////////////////////////////////
+    // Static member data
+    ////////////////////////////////////////////////////////////
+    static const ScanCode ScanCodeMap[]; ///< Defines the mapping from Win32 scan codes to SFML scan codes
 
     ////////////////////////////////////////////////////////////
     // Member data
