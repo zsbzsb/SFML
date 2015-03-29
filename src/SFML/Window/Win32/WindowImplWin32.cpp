@@ -648,6 +648,11 @@ void WindowImplWin32::processEvent(UINT message, WPARAM wParam, LPARAM lParam)
                 event.key.scanCode    = scanCodeToSF(wParam, lParam);
                 event.key.rawScanCode = static_cast<ScanCode>((lParam & (0xFF << 16)) >> 16);
                 event.key.code        = event.key.virtualKey;
+
+                // Extended key, so we need to add 128 to the raw scan code
+                if ((HIWORD(lParam) & KF_EXTENDED) && event.key.rawScanCode)
+                    event.key.rawScanCode += 128;
+
                 pushEvent(event);
             }
             break;
@@ -667,6 +672,11 @@ void WindowImplWin32::processEvent(UINT message, WPARAM wParam, LPARAM lParam)
             event.key.scanCode    = scanCodeToSF(wParam, lParam);
             event.key.rawScanCode = static_cast<ScanCode>((lParam & (0xFF << 16)) >> 16);
             event.key.code        = event.key.virtualKey;
+
+            // Extended key, so we need to add 128 to the raw scan code
+            if ((HIWORD(lParam) & KF_EXTENDED) && event.key.rawScanCode)
+                event.key.rawScanCode += 128;
+
             pushEvent(event);
             break;
         }
